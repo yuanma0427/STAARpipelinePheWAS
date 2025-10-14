@@ -1,7 +1,7 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 # STAARpipelinePheWAS
-This is an R package for performing phenome-wide association analysis of whole-genome/whole-exome sequencing (WGS/WES) studies using STAARpipeline.
+This is an R package for performing phenome-wide association analysis of whole-genome/whole-exome sequencing (WGS/WES) studies using STAARpipelinePheWAS.
 ## Prerequisites
 <a href="https://www.r-project.org">R</a> (recommended version >= 3.5.1)
 
