@@ -2,6 +2,8 @@
 
 # STAARpipelinePheWAS
 This is an R package for performing phenome-wide association analysis of whole-genome/whole-exome sequencing (WGS/WES) studies using STAARpipelinePheWAS.
+## Workflow Overview
+![STAARpipelinePheWAS_workflow](docs/STAARpipelinePheWAS_workflow.jpg)
 ## Prerequisites
 <a href="https://www.r-project.org">R</a> (recommended version >= 3.5.1)
 
@@ -12,6 +14,11 @@ STAARpipelinePheWAS imports R packages <a href="https://github.com/xihaoli/STAAR
 ```
 library(devtools)
 devtools::install_github("li-lab-genetics/STAARpipelinePheWAS",ref="main")
+```
+## Docker Image
+A [docker image for STAARpipeline](https://hub.docker.com/repository/docker/zilinli/staarpipeline), including R (version 3.6.1) built with Intel MKL and all STAAR-related packages (STAAR, MultiSTAAR, SCANG, STAARpipeline, STAARpipelineSummary) pre-installed, is located in the Docker Hub. The docker image can be pulled using
+```
+docker pull zilinli/staarpipeline:0.9.9
 ```
 ## Usage
 Please see the <a href="docs/STAARpipelinePheWAS_manual.pdf">**STAARpipelinePheWAS** user manual</a> for detailed usage of STAARpipelinePheWAS package.
