@@ -18,7 +18,10 @@ Individual_Analysis_PheWAS(
   tol = .Machine$double.eps^0.25,
   max_iter = 1000,
   SPA_p_filter = TRUE,
-  p_filter_cutoff = 0.05
+  p_filter_cutoff = 0.05,
+  variance_method = c("exact_diag", "adaptive_ratio"),
+  p_refine_cutoff = 0.05,
+  spa_routing_buffer = 1e-04
 )
 }
 \arguments{
@@ -52,6 +55,27 @@ estimates in saddlepoint approximation algorithm below which iterations should b
 \item{SPA_p_filter}{logical: are only the variants with a score-test-based p-value smaller than a pre-specified threshold use the SPA method to recalculate the p-value, only used for imbalanced case-control setting (default = TRUE).}
 
 \item{p_filter_cutoff}{threshold for the p-value recalculation using the SPA method, only used for imbalanced case-control setting (default = 0.05)}
+
+\item{variance_method}{method of calculating the score test variance. Either "exact_diag" (the exact variance, as in earlier versions)
+or "adaptive_ratio" (the variance without the GRM multiplied by the variance ratio that \code{\link[STAARpipeline]{Variance_Ratio_Estimation}}
+stores in each null model, recalculated exactly for variants with p-value smaller than \code{p_refine_cutoff}), as in
+\code{\link[STAARpipeline]{Individual_Analysis}} (default = "exact_diag").
+"adaptive_ratio" requires every null model in \code{obj_nullmodel_list} to be a single-phenotype null model fitted by \code{fit_nullmodel}
+with a sparse GRM in \code{kins} and one residual variance group; each null model with a nonzero variance component estimate of the GRM must
+already contain the variance ratio (\code{obj_nullmodel$variance_ratio$ratio_v0}) calibrated by \code{\link[STAARpipeline]{Variance_Ratio_Estimation}}.
+The variance ratio is calibrated on variants with minor allele frequency of at least 0.01, and the same ratio is applied to all individual variants tested.
+For imbalanced case-control null models (\code{use_SPA}), variants with p-value smaller than \code{p_filter_cutoff}
+(plus \code{spa_routing_buffer} for the p-value using the variance ratio) are recalculated using the SPA method,
+which does not use the variance, so the exact variance is not calculated for them.}
+
+\item{p_refine_cutoff}{threshold of the p-value using the variance ratio below which the exact variance is used.
+This is a routing threshold. Only used when \code{variance_method} is "adaptive_ratio" (default = 0.05).}
+
+\item{spa_routing_buffer}{conservative one-sided guard for the SPA routing of imbalanced case-control null models (\code{use_SPA})
+when \code{variance_method} is "adaptive_ratio" and the variance component estimate of the GRM is nonzero: variants with p-value using the variance ratio
+smaller than \code{min(1, p_filter_cutoff + spa_routing_buffer)} are recalculated using the SPA method, so that the variance approximation does not push
+a variant that the exact variance would send to SPA just above \code{p_filter_cutoff}, the nominal SPA routing threshold. Not used otherwise.
+The default was validated for the default \code{p_filter_cutoff} = 0.05 (common variants), not for other SPA routing thresholds (default = 1e-4).}
 }
 \value{
 A list of data frames containing the score test p-value and the estimated effect size of the minor allele for each individual variant in the given genetic region for each phenotype.
@@ -64,6 +88,11 @@ quantitative/dichotomous phenotypes (including imbalanced case-control design) a
 For multiple phenotype analysis (\code{obj_nullmodel$n.pheno > 1}),
 the results correspond to multi-trait score test p-values by leveraging
 the correlation structure between multiple phenotypes.
+With \code{variance_method = "adaptive_ratio"}, the score test variance is calculated for each null model as in
+\code{\link[STAARpipeline]{Individual_Analysis}} of the \code{STAARpipeline} package, using the variance ratio stored in the null model by
+\code{\link[STAARpipeline]{Variance_Ratio_Estimation}}. \code{Individual_Analysis_PheWAS} does not calibrate the variance ratio, as it is usually
+called for many genetic regions: calibrate each null model once beforehand and supply the calibrated null models in \code{obj_nullmodel_list}, e.g.
+\code{obj_nullmodel_list <- lapply(obj_nullmodel_list, function(obj) Variance_Ratio_Estimation(genofile, obj, QC_label = QC_label))}.
 }
 \references{
 Chen, H., et al. (2016). Control for population structure and relatedness for binary traits
