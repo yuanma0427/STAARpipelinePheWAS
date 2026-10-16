@@ -48,6 +48,10 @@
 #' The default was validated for the default \code{p_filter_cutoff} = 0.05 (common variants), not for other SPA routing thresholds (default = 1e-4).
 #' @return A list of data frames containing the score test p-value and the estimated effect size of the minor allele for each individual variant in the given genetic region for each phenotype.
 #' The first 4 columns of each data frame correspond to chromosome (CHR), position (POS), reference allele (REF), and alternative allele (ALT).
+#' For single-phenotype imbalanced case-control null models (\code{use_SPA}) with \code{SPA_p_filter = TRUE}, \code{pvalue} is the final p-value,
+#' and each data frame also contains \code{pvalue_score}, the score test p-value before the SPA recalculation; \code{pvalue_SPA}, the SPA p-value for variants
+#' recalculated using the SPA method (\code{NA} otherwise); and \code{Est} and \code{Est_se}, the estimated effect size and its standard error.
+#' With \code{variance_method = "adaptive_ratio"}, \code{pvalue_score}, \code{Est} and \code{Est_se} use the variance ratio unless the exact variance is calculated (see \code{variance_method}).
 #' @references Chen, H., et al. (2016). Control for population structure and relatedness for binary traits
 #' in genetic association studies via logistic mixed models. \emph{The American Journal of Human Genetics}, \emph{98}(4), 653-666.
 #' (\href{https://doi.org/10.1016/j.ajhg.2016.02.012}{pub})
@@ -450,24 +454,36 @@ Individual_Analysis_PheWAS <- function(chr,start_loc,end_loc,genofile,obj_nullmo
 					  ## SPA approximation for small p-values
 					  if(use_SPA)
 					  {
-					    pvalue <- exp(-Score_test$pvalue_log)
+					    ## score test p-values before the SPA recalculation; SPA p-values only for the variants recalculated using SPA
+					    pvalue_score <- exp(-Score_test$pvalue_log)
+					    pvalue <- pvalue_score
+					    pvalue_SPA <- rep(NA_real_, length(pvalue_score))
 					    
-					    if(sum(pvalue < p_SPA_cutoff)>=1)
+					    if(sum(pvalue_score < p_SPA_cutoff)>=1)
 					    {
-					      is.common_subset_SPA <- as.vector(pvalue < p_SPA_cutoff)
+					      is.common_subset_SPA <- as.vector(pvalue_score < p_SPA_cutoff)
 					      Geno_common_subset_SPA <- Geno_common_subset[,is.common_subset_SPA,drop=FALSE]
 					      Geno_common_subset_SPA <- as.matrix(Geno_common_subset_SPA)
 					      
-					      pvalue_SPA <- Individual_Score_Test_SPA(Geno_common_subset_SPA,XW,XXWX_inv,residuals.phenotype,muhat,tol,max_iter)
+					      pvalue_SPA[is.common_subset_SPA] <- Individual_Score_Test_SPA(Geno_common_subset_SPA,XW,XXWX_inv,residuals.phenotype,muhat,tol,max_iter)
 					      
-					      pvalue[pvalue < p_SPA_cutoff] <- pvalue_SPA
+					      pvalue[is.common_subset_SPA] <- pvalue_SPA[is.common_subset_SPA]
 					    }
 					  }
 					  
 					  if(use_SPA)
 					  {
-					    results_temp <- data.frame(CHR=CHR_common_subset,POS=position_common_subset,REF=REF_common_subset,ALT=ALT_common_subset,ALT_AF=ALT_AF_common_subset,
-					                               MAF=MAF_common_subset,N=N_common_subset,pvalue=pvalue)
+					    if(n_pheno == 1)
+					    {
+					      results_temp <- data.frame(CHR=CHR_common_subset,POS=position_common_subset,REF=REF_common_subset,ALT=ALT_common_subset,ALT_AF=ALT_AF_common_subset,
+					                                 MAF=MAF_common_subset,N=N_common_subset,pvalue=pvalue,
+					                                 pvalue_score=pvalue_score,pvalue_SPA=pvalue_SPA,
+					                                 Est=Score_test$Est,Est_se=Score_test$Est_se)
+					    }else
+					    {
+					      results_temp <- data.frame(CHR=CHR_common_subset,POS=position_common_subset,REF=REF_common_subset,ALT=ALT_common_subset,ALT_AF=ALT_AF_common_subset,
+					                                 MAF=MAF_common_subset,N=N_common_subset,pvalue=pvalue)
+					    }
 					  }else
 					  {
 					    if(n_pheno == 1)
@@ -557,12 +573,15 @@ Individual_Analysis_PheWAS <- function(chr,start_loc,end_loc,genofile,obj_nullmo
 					## SPA approximation for small p-values
 					if(use_SPA)
 					{
-						pvalue <- exp(-Score_test$pvalue_log)
+						## score test p-values before the SPA recalculation; SPA p-values only for the variants recalculated using SPA
+						pvalue_score <- exp(-Score_test$pvalue_log)
+						pvalue <- pvalue_score
+						pvalue_SPA <- rep(NA_real_, length(pvalue_score))
 
-						is.rare_SPA <- as.vector(pvalue < p_SPA_cutoff)
+						is.rare_SPA <- as.vector(pvalue_score < p_SPA_cutoff)
 						if(sum(is.rare_SPA)>=1)
 						{
-						  pvalue_SPA <- c()
+						  pvalue_SPA_rare <- c()
 						  Geno_rare_SPA <- Geno_rare[,is.rare_SPA,drop=FALSE]
 						  
 						  ## Split into small chunks to run
@@ -586,18 +605,26 @@ Individual_Analysis_PheWAS <- function(chr,start_loc,end_loc,genofile,obj_nullmo
 						    if(length(is.in_SPA_subset)>=1)
 						    {
 						      pvalue_SPA_subset <- Individual_Score_Test_SPA(Geno_rare_SPA_subset,XW,XXWX_inv,residuals.phenotype,muhat,tol,max_iter)
-						      pvalue_SPA <- c(pvalue_SPA,pvalue_SPA_subset)
+						      pvalue_SPA_rare <- c(pvalue_SPA_rare,pvalue_SPA_subset)
 						    }
 						  }
-						  pvalue[is.rare_SPA] <- pvalue_SPA
+						  pvalue_SPA[is.rare_SPA] <- pvalue_SPA_rare
+						  pvalue[is.rare_SPA] <- pvalue_SPA[is.rare_SPA]
 						}
 					}
 
 					if(use_SPA)
 					{
-						results_temp <- data.frame(CHR=CHR_rare,POS=position_rare,REF=REF_rare,ALT=ALT_rare,ALT_AF=ALT_AF_rare,MAF=MAF_rare,N=N_rare,
-						                           pvalue=pvalue)
-
+						if(n_pheno == 1)
+						{
+							results_temp <- data.frame(CHR=CHR_rare,POS=position_rare,REF=REF_rare,ALT=ALT_rare,ALT_AF=ALT_AF_rare,MAF=MAF_rare,N=N_rare,
+							                           pvalue=pvalue,pvalue_score=pvalue_score,pvalue_SPA=pvalue_SPA,
+							                           Est=Score_test$Est,Est_se=Score_test$Est_se)
+						}else
+						{
+							results_temp <- data.frame(CHR=CHR_rare,POS=position_rare,REF=REF_rare,ALT=ALT_rare,ALT_AF=ALT_AF_rare,MAF=MAF_rare,N=N_rare,
+							                           pvalue=pvalue)
+						}
 					}else
 					{
 						if(n_pheno == 1)

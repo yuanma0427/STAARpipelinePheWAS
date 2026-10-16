@@ -80,6 +80,10 @@ The default was validated for the default \code{p_filter_cutoff} = 0.05 (common 
 \value{
 A list of data frames containing the score test p-value and the estimated effect size of the minor allele for each individual variant in the given genetic region for each phenotype.
 The first 4 columns of each data frame correspond to chromosome (CHR), position (POS), reference allele (REF), and alternative allele (ALT).
+For single-phenotype imbalanced case-control null models (\code{use_SPA}) with \code{SPA_p_filter = TRUE}, \code{pvalue} is the final p-value,
+and each data frame also contains \code{pvalue_score}, the score test p-value before the SPA recalculation; \code{pvalue_SPA}, the SPA p-value for variants
+recalculated using the SPA method (\code{NA} otherwise); and \code{Est} and \code{Est_se}, the estimated effect size and its standard error.
+With \code{variance_method = "adaptive_ratio"}, \code{pvalue_score}, \code{Est} and \code{Est_se} use the variance ratio unless the exact variance is calculated (see \code{variance_method}).
 }
 \description{
 The \code{Individual_Analysis_PheWAS} function takes in chromosome, starting location, ending location,
